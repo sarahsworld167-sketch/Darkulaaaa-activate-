@@ -5,17 +5,22 @@ const {
 
 const activate = require('../handlers/activate');
 
+const ALLOWED_USER_IDS = [
+  '1420684626141249598',
+  '1307666797318766606'
+];
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('darkula')
-    .setDescription('Darkula Activate controls')
+    .setDescription('Darkula Activate commands')
     .setDefaultMemberPermissions(
       PermissionFlagsBits.ManageChannels
     )
     .addSubcommand(subcommand =>
       subcommand
         .setName('activate')
-        .setDescription('Create text channels and send a message')
+        .setDescription('Create channels and send messages')
         .addStringOption(option =>
           option
             .setName('channel_name')
@@ -26,7 +31,7 @@ module.exports = {
         .addIntegerOption(option =>
           option
             .setName('channel_amount')
-            .setDescription('Number of channels to create (1-10)')
+            .setDescription('Number of channels to create')
             .setRequired(true)
             .setMinValue(1)
             .setMaxValue(10)
@@ -34,14 +39,14 @@ module.exports = {
         .addStringOption(option =>
           option
             .setName('message')
-            .setDescription('Message to send in every channel')
+            .setDescription('Message to send')
             .setRequired(true)
             .setMaxLength(1000)
         )
         .addIntegerOption(option =>
           option
             .setName('message_count')
-            .setDescription('Messages per channel (1-3)')
+            .setDescription('Messages per channel')
             .setRequired(true)
             .setMinValue(1)
             .setMaxValue(3)
@@ -49,12 +54,23 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    if (!interaction.isChatInputCommand()) return;
+    const isAdmin = interaction.memberPermissions?.has(
+      PermissionFlagsBits.ManageChannels
+    );
 
-    if (interaction.options.getSubcommand() !== 'activate') {
-      return;
+    const isAllowedUser = ALLOWED_USER_IDS.includes(
+      interaction.user.id
+    );
+
+    if (!isAdmin && !isAllowedUser) {
+      return interaction.reply({
+        content: '❌ You are not allowed to use this command.',
+        ephemeral: true
+      });
     }
 
-    await activate.execute(interaction);
+    if (interaction.options.getSubcommand() === 'activate') {
+      return activate.execute(interaction);
+    }
   }
 };
