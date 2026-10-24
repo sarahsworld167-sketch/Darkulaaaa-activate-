@@ -10,12 +10,13 @@ const {
 
 const darkula = require('./commands/darkula');
 
-const { DISCORD_TOKEN, CLIENT_ID, GUILD_ID } = process.env;
+const { DISCORD_TOKEN, CLIENT_ID } = process.env;
 
-if (!DISCORD_TOKEN || !CLIENT_ID || !GUILD_ID) {
+if (!DISCORD_TOKEN || !CLIENT_ID) {
   console.error(
-    'Missing DISCORD_TOKEN, CLIENT_ID or GUILD_ID in .env'
+    'Missing DISCORD_TOKEN or CLIENT_ID in environment variables.'
   );
+
   process.exit(1);
 }
 
@@ -24,60 +25,82 @@ const client = new Client({
 });
 
 client.commands = new Collection();
-client.commands.set(darkula.data.name, darkula);
 
-const rest = new REST({ version: '10' })
-  .setToken(DISCORD_TOKEN);
+client.commands.set(
+  darkula.data.name,
+  darkula
+);
 
-async function startBot() {
-  try {
-    console.log('Registering Darkula commands...');
+const rest = new REST({
+  version: '10'
+}).setToken(DISCORD_TOKEN);
 
-    await rest.put(
-      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-      {
-        body: [darkula.data.toJSON()]
-      }
-    );
+async function registerCommands() {
+  console.log('Registering global slash commands...');
 
-    console.log('Slash command registered!');
+  await rest.put(
+    Routes.applicationCommands(CLIENT_ID),
+    {
+      body: [
+        darkula.data.toJSON()
+      ]
+    }
+  );
 
-    client.on('interactionCreate', async interaction => {
-      if (!interaction.isChatInputCommand()) return;
-
-      const command = client.commands.get(
-        interaction.commandName
-      );
-
-      if (!command) return;
-
-      try {
-        await command.execute(interaction);
-      } catch (error) {
-        console.error('Command error:', error);
-
-        const response = {
-          content: 'An unexpected error occurred.',
-          ephemeral: true
-        };
-
-        if (interaction.deferred || interaction.replied) {
-          await interaction.editReply(response).catch(() => {});
-        } else {
-          await interaction.reply(response).catch(() => {});
-        }
-      }
-    });
-
-    await client.login(DISCORD_TOKEN);
-  } catch (error) {
-    console.error('Startup error:', error);
-    process.exit(1);
-  }
+  console.log('Global slash commands registered!');
 }
 
 client.once('ready', () => {
-  console.log(`${client.user.tag} is online!`);
+  console.log(
+    `Darkula Activate is online as ${client.user.tag}`
+  );
+
+  console.log(
+    `Connected to ${client.guilds.cache.size} server(s).`
+  );
 });
+
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isChatInputCommand()) {
+    return;
+  }
+
+  const command = client.commands.get(
+    interaction.commandName
+  );
+
+  if (!command) {
+    return;
+  }
+
+  try {
+    await command.execute(interaction);
+  } catch (error) {
+    console.error('Command execution error:', error);
+
+    const response = {
+      content: 'An error occurred while executing the command.',
+      ephemeral: true
+    };
+
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply(response).catch(() => {});
+    } else {
+      await interaction.reply(response).catch(() => {});
+    }
+  }
+});
+
+async function startBot() {
+  try {
+    await registerCommands();
+
+    await client.login(DISCORD_TOKEN);
+  } catch (error) {
+    console.error('Failed to start Darkula Activate:', error);
+
+    process.exit(1);
+  }
+}
 
 startBot();
