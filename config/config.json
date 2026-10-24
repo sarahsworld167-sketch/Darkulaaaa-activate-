@@ -1,1 +1,4 @@
-
+{
+  "maxChannelsPerRun": 10,
+  "maxMessagesPerChannel": 3
+}
